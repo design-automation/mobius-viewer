@@ -5,7 +5,7 @@
 /**
  *
  */
-import { checkIDs, IdCh } from '../_check_ids';
+import { checkIDs, ID } from '../_check_ids';
 import { checkArgs, ArgCh } from '../_check_args';
 
 import { GIModel } from '@libs/geo-info/GIModel';
@@ -13,8 +13,8 @@ import { importObj, exportPosiBasedObj, exportVertBasedObj } from '@libs/geo-inf
 import { importGeojson, exportGeojson } from '@libs/geo-info/io_geojson';
 import { download } from '@libs/filesys/download';
 import { TId, EEntType, TEntTypeIdx, IEntSets } from '@libs/geo-info/common';
-import { __merge__ } from '../_model';
-import { _model } from '..';
+// import { __merge__ } from '../_model';
+// import { _model } from '..';
 import { idsMake, idsBreak } from '@libs/geo-info/id';
 import { arrMakeFlat } from '@assets/libs/util/arrs';
 import JSZip from 'jszip';
@@ -143,7 +143,7 @@ function _importGI(__model__: GIModel, json_str: string): number {
     // import
     const gi_model: GIModel = new GIModel(__model__.getMetaData());
     gi_model.setJSONStr(json_str);
-    __model__.mergeAndPurge(gi_model);
+    __model__.append(gi_model);
     // get number of ents after merge
     const num_ents_after: number[] = __model__.modeldata.geom.query.numEntsAll();
     // return the result
@@ -252,8 +252,8 @@ export async function Export(__model__: GIModel, entities: TId|TId[]|TId[][],
     if (__model__.debug) {
         if (entities !== null) {
             entities = arrMakeFlat(entities) as TId[];
-            ents_arr = checkIDs(fn_name, 'entities', entities,
-                [IdCh.isIdL], [EEntType.PLINE, EEntType.PGON, EEntType.COLL])  as TEntTypeIdx[];
+            ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+                [ID.isIDL], [EEntType.PLINE, EEntType.PGON, EEntType.COLL])  as TEntTypeIdx[];
         }
         checkArgs(fn_name, 'file_name', file_name, [ArgCh.isStr, ArgCh.isStrL]);
     } else {

@@ -62,8 +62,13 @@ export class GIGeomQuery {
         // if (ent_type === EEntType.POSI) {
         //     return this._geom_maps.up_posis_verts.has(index);
         // }
-        const geom_arrays_key: string = EEntStrToGeomMaps[ent_type];
-        return this._geom_maps[geom_arrays_key].has(index);
+        const geom_maps_key: string = EEntStrToGeomMaps[ent_type];
+
+        if (this._geom_maps[geom_maps_key] === undefined) {
+            console.log(">>>>", ent_type, index,  geom_maps_key)
+        }
+        
+        return this._geom_maps[geom_maps_key].has(index);
     }
     /**
      * Returns sets of unique indexes, given an array of TEntTypeIdx.
@@ -92,13 +97,13 @@ export class GIGeomQuery {
                 coll_and_desc_i.splice(0, 0, ent_i);
                 // get all the objs
                 for (const one_coll_i of coll_and_desc_i) {
-                    for (const point_i of this._geom_maps.dn_colls_objs.get(one_coll_i)[1]) {
+                    for (const point_i of this._geom_maps.dn_colls_points.get(one_coll_i)) {
                         set_points_i.add(point_i);
                     }
-                    for (const pline_i of this._geom_maps.dn_colls_objs.get(one_coll_i)[2]) {
+                    for (const pline_i of this._geom_maps.dn_colls_plines.get(one_coll_i)) {
                         set_plines_i.add(pline_i);
                     }
-                    for (const pgon_i of this._geom_maps.dn_colls_objs.get(one_coll_i)[3]) {
+                    for (const pgon_i of this._geom_maps.dn_colls_pgons.get(one_coll_i)) {
                         set_pgons_i.add(pgon_i);
                     }
                     set_colls_i.add(one_coll_i);
@@ -335,7 +340,7 @@ export class GIGeomQuery {
             return EWireType.PLINE;
         }
         const face_i: number = this._geom.nav.navWireToFace(wire_i);
-        const face: TFace = this._geom.nav.getFace(face_i);
+        const face: TFace = this._geom_maps.dn_faces_wires.get(face_i); // nav.getFace(face_i);
         const index: number = face.indexOf(wire_i);
         if (index === 0) { return EWireType.PGON; }
         if (index > 0) { return EWireType.PGON_HOLE; }
@@ -466,7 +471,7 @@ export class GIGeomQuery {
      * @param coll_i
      */
     public getCollParent(coll_i: number): number {
-        return this._geom_maps.dn_colls_objs.get(coll_i)[0];
+        return this._geom_maps.up_colls_colls.get(coll_i);
     }
     /**
      * Get the children collections of a collection.
@@ -474,8 +479,8 @@ export class GIGeomQuery {
      */
     public getCollChildren(coll_i: number): number[] {
         const children: number[] = [];
-        this._geom_maps.dn_colls_objs.forEach( (coll2, coll2_i) => {
-            if (coll2[0] === coll_i) {
+        this._geom_maps.up_colls_colls.forEach( (coll2_parent, coll2_i) => {
+            if (coll2_parent === coll_i) {
                 children.push(coll2_i);
             }
         });
@@ -487,10 +492,10 @@ export class GIGeomQuery {
      */
     public getCollAncestors(coll_i: number): number[] {
         const ancestor_colls_i: number[] = [];
-        let parent_coll_i: number = this._geom_maps.dn_colls_objs.get(coll_i)[0];
+        let parent_coll_i: number = this._geom_maps.up_colls_colls.get(coll_i);
         while (parent_coll_i !== -1) {
             ancestor_colls_i.push(parent_coll_i);
-            parent_coll_i = this._geom_maps.dn_colls_objs.get(parent_coll_i)[0];
+            parent_coll_i = this._geom_maps.up_colls_colls.get(parent_coll_i);
         }
         return ancestor_colls_i;
     }
@@ -500,8 +505,8 @@ export class GIGeomQuery {
      */
     public getCollDescendents(coll_i: number): number[] {
         const descendent_colls_i: number[] = [];
-        this._geom_maps.dn_colls_objs.forEach( (coll2, coll2_i) => {
-            if (coll2[0] !== -1 && coll2_i !== coll_i) {
+        this._geom_maps.up_colls_colls.forEach( (coll2_parent, coll2_i) => {
+            if (coll2_parent !== -1 && coll2_i !== coll_i) {
                 if (this.isCollDescendent(coll2_i, coll_i)) {
                     descendent_colls_i.push(coll2_i);
                 }
@@ -514,10 +519,10 @@ export class GIGeomQuery {
      * @param coll_i
      */
     public isCollDescendent(coll1_i: number, coll2_i: number): boolean {
-        let parent_coll_i: number = this._geom_maps.dn_colls_objs.get(coll1_i)[0];
+        let parent_coll_i: number = this._geom_maps.up_colls_colls.get(coll1_i);
         while (parent_coll_i !== -1) {
             if (parent_coll_i === coll2_i) { return true; }
-            parent_coll_i = this._geom_maps.dn_colls_objs.get(parent_coll_i)[0];
+            parent_coll_i = this._geom_maps.up_colls_colls.get(parent_coll_i);
         }
         return false;
     }
@@ -526,24 +531,13 @@ export class GIGeomQuery {
      * @param coll_i
      */
     public isCollAncestor(coll1_i: number, coll2_i: number): boolean {
-        let parent_coll_i: number = this._geom_maps.dn_colls_objs.get(coll2_i)[0];
+        let parent_coll_i: number = this._geom_maps.up_colls_colls.get(coll2_i);
         while (parent_coll_i !== -1) {
             if (parent_coll_i === coll1_i) { return true; }
-            parent_coll_i = this._geom_maps.dn_colls_objs.get(parent_coll_i)[0];
+            parent_coll_i = this._geom_maps.up_colls_colls.get(parent_coll_i);
         }
         return false;
     }
-    // /**
-    //  * I am not sure what this is... TODO
-    //  * A collection can only have one parent
-    //  * @param coll_i
-    //  */
-    // public getCollParents(coll_i: number) {
-    //     const coll: TColl = this._geom_maps.dn_colls_objs.get(coll_i];
-    //     // @ts-ignore
-    //     const _parents = coll.flat(1).filter(function (el) {return el != null; });
-    //     return _parents;
-    // }
     // ============================================================================
     // Faces
     // ============================================================================

@@ -5,14 +5,14 @@
 /**
  *
  */
-import { checkIDs, IdCh } from '../_check_ids';
+import { checkIDs, ID } from '../_check_ids';
 import { checkArgs, ArgCh } from '../_check_args';
 
 import { GIModel } from '@libs/geo-info/GIModel';
 import { TId, EEntType, TEntTypeIdx, EFilterOperatorTypes } from '@libs/geo-info/common';
 import { isPoint, isPline, isPgon, isColl, idsMake, getArrDepth, isEmptyArr, idsBreak } from '@libs/geo-info/id';
-import { __merge__} from '../_model';
-import { _model } from '..';
+// import { __merge__} from '../_model';
+// import { _model } from '..';
 import { arrMakeFlat } from '@libs/util/arrs';
 
 // ================================================================================================
@@ -36,8 +36,8 @@ export function Create(__model__: GIModel, entities: TId|TId[]|TId[][], name: st
     const fn_name = 'collection.Create';
     let ents_arr: TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities,
-            [IdCh.isId, IdCh.isIdL, IdCh.isIdLL],
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+            [ID.isID, ID.isIDL, ID.isIDLL],
             [EEntType.POINT, EEntType.PLINE, EEntType.PGON, EEntType.COLL]) as TEntTypeIdx[];
         checkArgs(fn_name, 'name', name, [ArgCh.isStr, ArgCh.isStrL]);
     } else {
@@ -175,9 +175,9 @@ export function Add(__model__: GIModel, coll: TId, entities: TId|TId[]): void {
         let coll_arr;
         let ents_arr: TEntTypeIdx[];
         if (__model__.debug) {
-            coll_arr = checkIDs(fn_name, 'coll', coll, [IdCh.isId], [EEntType.COLL]) as TEntTypeIdx;
-            ents_arr = checkIDs(fn_name, 'entities', entities,
-                [IdCh.isId, IdCh.isIdL],
+            coll_arr = checkIDs(__model__, fn_name, 'coll', coll, [ID.isID], [EEntType.COLL]) as TEntTypeIdx;
+            ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+                [ID.isID, ID.isIDL],
                 [EEntType.POINT, EEntType.PLINE, EEntType.PGON, EEntType.COLL]) as TEntTypeIdx[];
         } else {
             // coll_arr = splitIDs(fn_name, 'coll', coll, [IDcheckObj.isID], [EEntType.COLL]) as TEntTypeIdx;
@@ -234,11 +234,11 @@ export function Remove(__model__: GIModel, coll: TId, entities: TId|TId[]): void
     if (__model__.debug) {
         if (entities !== null) {
             entities = arrMakeFlat(entities) as TId[];
-            ents_arr = checkIDs(fn_name, 'entities', entities,
-                [IdCh.isId, IdCh.isIdL],
+            ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+                [ID.isID, ID.isIDL],
                 [EEntType.POINT, EEntType.PLINE, EEntType.PGON, EEntType.COLL]) as TEntTypeIdx[];
         }
-        coll_arr = checkIDs(fn_name, 'coll', coll, [IdCh.isId], [EEntType.COLL]) as TEntTypeIdx;
+        coll_arr = checkIDs(__model__, fn_name, 'coll', coll, [ID.isID], [EEntType.COLL]) as TEntTypeIdx;
     } else {
         if (entities !== null) {
             entities = arrMakeFlat(entities) as TId[];
@@ -309,7 +309,7 @@ export function Delete(__model__: GIModel, coll: TId|TId[]): void {
     const fn_name = 'collection.Delete';
     let colls_arrs;
     if (__model__.debug) {
-        colls_arrs = checkIDs(fn_name, 'coll', coll, [IdCh.isIdL], [EEntType.COLL]) as TEntTypeIdx[];
+        colls_arrs = checkIDs(__model__, fn_name, 'coll', coll, [ID.isIDL], [EEntType.COLL]) as TEntTypeIdx[];
     } else {
         // colls_arrs = splitIDs(fn_name, 'coll', coll, [IDcheckObj.isIDList], [EEntType.COLL]) as TEntTypeIdx[];
         colls_arrs = idsBreak(coll) as TEntTypeIdx[];
@@ -319,7 +319,7 @@ export function Delete(__model__: GIModel, coll: TId|TId[]): void {
     for (const [ent_type, ent_i] of colls_arrs) {
         colls_i.push(ent_i);
     }
-    __model__.modeldata.geom.del.delColls(colls_i, false);
+    __model__.modeldata.geom.del.delColls(colls_i);
 }
 // ================================================================================================
 

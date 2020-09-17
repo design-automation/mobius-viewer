@@ -8,7 +8,7 @@
 /**
  *
  */
-import { checkIDs, IdCh } from '../_check_ids';
+import { checkIDs, ID } from '../_check_ids';
 import { checkArgs, ArgCh } from '../_check_args';
 
 import { GIModel } from '@libs/geo-info/GIModel';
@@ -112,8 +112,8 @@ export function Set(__model__: GIModel, entities: TId|TId[], material: string): 
         const fn_name = 'matrial.Set';
         let ents_arr: TEntTypeIdx[];
         if (__model__.debug) {
-            ents_arr = checkIDs(fn_name, 'entities', entities,
-                [IdCh.isId, IdCh.isIdL, IdCh.isIdLL], null) as TEntTypeIdx[];
+            ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+                [ID.isID, ID.isIDL, ID.isIDLL], null) as TEntTypeIdx[];
             checkArgs(fn_name, 'material', material, [ArgCh.isStr]);
         } else {
             // ents_arr = splitIDs(fn_name, 'entities', entities,

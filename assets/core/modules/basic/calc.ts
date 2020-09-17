@@ -7,7 +7,7 @@
 /**
  *
  */
-import { checkIDs, IdCh } from '../_check_ids';
+import { checkIDs, ID } from '../_check_ids';
 import { checkArgs, ArgCh } from '../_check_args';
 
 import { GIModel } from '@libs/geo-info/GIModel';
@@ -49,9 +49,9 @@ export function Distance(__model__: GIModel, entities1: TId|TId[], entities2: TI
     let ents_arr1: TEntTypeIdx|TEntTypeIdx[];
     let ents_arr2: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr1 = checkIDs(fn_name, 'entities1', entities1, [IdCh.isId, IdCh.isIdL],
+        ents_arr1 = checkIDs(__model__, fn_name, 'entities1', entities1, [ID.isID, ID.isIDL],
             null)  as TEntTypeIdx|TEntTypeIdx[];
-        ents_arr2 = checkIDs(fn_name, 'entities2', entities2, [IdCh.isIdL],
+        ents_arr2 = checkIDs(__model__, fn_name, 'entities2', entities2, [ID.isIDL],
             null) as TEntTypeIdx[];
     } else {
         // ents_arr1 = splitIDs(fn_name, 'entities1', entities1, [IDcheckObj.isID, IDcheckObj.isIDList],
@@ -274,7 +274,7 @@ export function Length(__model__: GIModel, entities: TId|TId[]): number|number[]
     const fn_name = 'calc.Length';
     let ents_arr: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities, [IdCh.isId, IdCh.isIdL],
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities, [ID.isID, ID.isIDL],
         [EEntType.EDGE, EEntType.WIRE, EEntType.PLINE, EEntType.PGON, EEntType.FACE, EEntType.COLL]) as TEntTypeIdx|TEntTypeIdx[];
     } else {
         // ents_arr = splitIDs(fn_name, 'entities', entities, [IDcheckObj.isID, IDcheckObj.isIDList],
@@ -344,8 +344,8 @@ export function Area(__model__: GIModel, entities: TId|TId[]): number|number[] {
     const fn_name = 'calc.Area';
     let ents_arr: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities,
-        [IdCh.isId, IdCh.isIdL],
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+        [ID.isID, ID.isIDL],
         [EEntType.PGON, EEntType.FACE, EEntType.PLINE, EEntType.WIRE, EEntType.COLL]) as TEntTypeIdx|TEntTypeIdx[];
     } else {
         // ents_arr = splitIDs(fn_name, 'entities', entities,
@@ -422,8 +422,8 @@ export function Vector(__model__: GIModel, entities: TId|TId[]): Txyz|Txyz[] {
     const fn_name = 'calc.Vector';
     let ents_arrs: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arrs = checkIDs(fn_name, 'entities', entities,
-        [IdCh.isId, IdCh.isIdL],
+        ents_arrs = checkIDs(__model__, fn_name, 'entities', entities,
+        [ID.isID, ID.isIDL],
         [EEntType.PGON, EEntType.FACE, EEntType.PLINE, EEntType.WIRE, EEntType.EDGE]) as TEntTypeIdx|TEntTypeIdx[];
     } else {
         // ents_arrs = splitIDs(fn_name, 'entities', entities,
@@ -493,8 +493,8 @@ export function Centroid(__model__: GIModel, entities: TId|TId[], method: _ECent
     const fn_name = 'calc.Centroid';
     let ents_arrs: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arrs = checkIDs(fn_name, 'entities', entities,
-        [IdCh.isId, IdCh.isIdL], null) as TEntTypeIdx|TEntTypeIdx[];
+        ents_arrs = checkIDs(__model__, fn_name, 'entities', entities,
+        [ID.isID, ID.isIDL], null) as TEntTypeIdx|TEntTypeIdx[];
     } else {
         // ents_arrs = splitIDs(fn_name, 'entities', entities,
         // [IDcheckObj.isID, IDcheckObj.isIDList], null) as TEntTypeIdx|TEntTypeIdx[];
@@ -546,8 +546,8 @@ export function Normal(__model__: GIModel, entities: TId|TId[], scale: number): 
     const fn_name = 'calc.Normal';
     let ents_arr: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities,
-        [IdCh.isId, IdCh.isIdL], null) as  TEntTypeIdx|TEntTypeIdx[];
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+        [ID.isID, ID.isIDL], null) as  TEntTypeIdx|TEntTypeIdx[];
         checkArgs(fn_name, 'scale', scale, [ArgCh.isNum]);
     } else {
         // ents_arr = splitIDs(fn_name, 'entities', entities,
@@ -641,8 +641,8 @@ export function Eval(__model__: GIModel, entities: TId|TId[], t_param: number): 
     const fn_name = 'calc.Eval';
     let ents_arrs: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arrs = checkIDs(fn_name, 'entities', entities,
-            [IdCh.isId, IdCh.isIdL],
+        ents_arrs = checkIDs(__model__, fn_name, 'entities', entities,
+            [ID.isID, ID.isIDL],
             [EEntType.EDGE, EEntType.WIRE, EEntType.FACE, EEntType.PLINE, EEntType.PGON, EEntType.COLL]) as TEntTypeIdx|TEntTypeIdx[];
         checkArgs(fn_name, 'param', t_param, [ArgCh.isNum01]);
     } else {
@@ -713,7 +713,7 @@ function _eval(__model__: GIModel, ents_arr: TEntTypeIdx|TEntTypeIdx[], t_param:
 export function _ParamXyzToT(__model__: GIModel, lines: TId|TId[], locations: TId|TId[]|Txyz|Txyz[]): number|number[] {
     // --- Error Check ---
     // const fn_name = 'calc.ParamXyzToT';
-    // checkIDs(fn_name, 'lines', lines, [IDcheckObj.isID, IDcheckObj.isIDList], [EEntType.EDGE, EEntType.WIRE, EEntType.PLINE]);
+    // checkIDs(__model__, fn_name, 'lines', lines, [IDcheckObj.isID, IDcheckObj.isIDList], [EEntType.EDGE, EEntType.WIRE, EEntType.PLINE]);
     // checkIDnTypes(fn_name, 'locations', locations,
     //               [IDcheckObj.isID, IDcheckObj.isIDList, TypeCheckObj.isNumberList], [EEntType.POSI, EEntType.VERT, EEntType.POINT]);
     // --- Error Check ---
@@ -740,8 +740,8 @@ export function Ray(__model__: GIModel, entities: TId|TId[]): TRay|TRay[] {
     const fn_name = 'calc.Ray';
     let ents_arr: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities,
-        [IdCh.isId, IdCh.isIdL], [EEntType.EDGE, EEntType.PLINE, EEntType.FACE, EEntType.PGON]) as TEntTypeIdx|TEntTypeIdx[];
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+        [ID.isID, ID.isIDL], [EEntType.EDGE, EEntType.PLINE, EEntType.FACE, EEntType.PGON]) as TEntTypeIdx|TEntTypeIdx[];
     } else {
         // ents_arr = splitIDs(fn_name, 'entities', entities,
         // [IDcheckObj.isID, IDcheckObj.isIDList], [EEntType.EDGE, EEntType.PLINE, EEntType.FACE, EEntType.PGON]) as TEntTypeIdx|TEntTypeIdx[];
@@ -798,8 +798,8 @@ export function Plane(__model__: GIModel, entities: TId|TId[]): TPlane|TPlane[] 
     const fn_name = 'calc.Plane';
     let ents_arr: TEntTypeIdx|TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities,
-            [IdCh.isId, IdCh.isIdL], null) as TEntTypeIdx|TEntTypeIdx[]; // takes in any
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities,
+            [ID.isID, ID.isIDL], null) as TEntTypeIdx|TEntTypeIdx[]; // takes in any
     } else {
         // ents_arr = splitIDs(fn_name, 'entities', entities,
         //     [IDcheckObj.isID, IDcheckObj.isIDList], null) as TEntTypeIdx|TEntTypeIdx[]; // takes in any
@@ -847,7 +847,7 @@ export function BBox(__model__: GIModel, entities: TId|TId[]): TBBox {
     const fn_name = 'calc.BBox';
     let ents_arr: TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'entities', entities, [IdCh.isIdL], null) as TEntTypeIdx[]; // all
+        ents_arr = checkIDs(__model__, fn_name, 'entities', entities, [ID.isIDL], null) as TEntTypeIdx[]; // all
     } else {
         // ents_arr = splitIDs(fn_name, 'entities', entities, [IDcheckObj.isIDList], null) as TEntTypeIdx[]; // all
         ents_arr = idsBreak(entities) as TEntTypeIdx[];
@@ -898,7 +898,7 @@ function _getBoundingBox(__model__: GIModel, ents_arr: TEntTypeIdx[]): TBBox {
 //     // --- Error Check ---
 //     const fn_name = 'virtual.Distance';
 //     checkCommTypes(fn_name, 'ray_or_plane', ray_or_plane, [TypeCheckObj.isRay, TypeCheckObj.isPlane]);
-//     const ents_arr = checkIDs(fn_name, 'entities', entities, [IDcheckObj.isID, IDcheckObj.isIDList],
+//     const ents_arr = checkIDs(__model__, fn_name, 'entities', entities, [IDcheckObj.isID, IDcheckObj.isIDList],
 //         [EEntType.POSI]) as TEntTypeIdx|TEntTypeIdx[];
 //     // --- Error Check ---
 //     const one_posi: boolean = getArrDepth(ents_arr) === 1;

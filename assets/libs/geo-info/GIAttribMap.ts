@@ -1,4 +1,4 @@
-import { EFilterOperatorTypes, EAttribDataTypeStrs, TAttribDataTypes, IAttribJSONData, EEntStrToGeomMaps, EEntType } from './common';
+import { EFilterOperatorTypes, EAttribDataTypeStrs, TAttribDataTypes, IAttribJSONData, EEntType } from './common';
 import { arrRem } from '../util/arrs';
 import { GIModelData } from './GIModelData';
 import * as lodash from 'lodash';
@@ -151,8 +151,7 @@ export class GIAttribMap {
                 other_ents_i.splice(other_ents_i.indexOf(ent_i), 1);
                 // clean up just in case that was the last entity with this value
                 this._cleanUp(val_i);
-                // update time stamp
-                this._modeldata.geom.time_stamp.updateEntTs(this._ent_type, ent_i);
+                // time stamp has already been deleted
             }
         });
         // TODO
@@ -313,7 +312,7 @@ export class GIAttribMap {
      * Assumes tha this map is empty
      * @param attrib_map The attrib map to merge into this map
      */
-    public dumpSelect(attrib_map: GIAttribMap, selected: Set<number>): void {
+    public dumpEnts(attrib_map: GIAttribMap, selected: Set<number>): void {
         selected.forEach(selected_ent_i => {
             if (attrib_map._map_ent_i_to_val_i.has(selected_ent_i)) {
                 const val_i: number = attrib_map._map_ent_i_to_val_i.get(selected_ent_i);

@@ -6,13 +6,13 @@
  *
  */
 
-import { checkIDs, IdCh } from '../_check_ids';
+import { checkIDs, ID } from '../_check_ids';
 
 import { GIModel } from '@libs/geo-info/GIModel';
 import { download } from '@libs/filesys/download';
 import { EEntType, IModelJSONData, TId, TEntTypeIdx } from '@libs/geo-info/common';
-import { __merge__ } from '../_model';
-import { _model } from '..';
+// import { __merge__ } from '../_model';
+// import { _model } from '..';
 import { arrMakeFlat } from '@assets/libs/util/arrs';
 import { idsBreak } from '@assets/libs/geo-info/id';
 import { _getFile } from './io';
@@ -151,8 +151,8 @@ export function EntityInfo(__model__: GIModel, entities: TId|TId[]): string {
     const fn_name = 'collection.Info';
     let ents_arr: TEntTypeIdx[];
     if (__model__.debug) {
-        ents_arr = checkIDs(fn_name, 'coll', entities,
-            [IdCh.isId, IdCh.isIdL],
+        ents_arr = checkIDs(__model__, fn_name, 'coll', entities,
+            [ID.isID, ID.isIDL],
             [EEntType.COLL, EEntType.PGON, EEntType.PLINE, EEntType.POINT]) as TEntTypeIdx[];
     } else {
         // ents_arr = splitIDs(fn_name, 'coll', entities,
