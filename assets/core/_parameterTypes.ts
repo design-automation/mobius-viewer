@@ -1,4 +1,4 @@
-import {__new__, __merge__} from './modules/_model';
+import {__new__, __merge__, __clone__} from './modules/_model';
 import { GIMetaData } from '@assets/libs/geo-info/GIMetaData';
 
 export const _parameterTypes = {
@@ -15,6 +15,7 @@ export const _parameterTypes = {
 
     merge: '_model.__merge__',
     mergeFn: __merge__,
+    cloneFn: __clone__,
 
     addData: '_model.addGiData',
 
@@ -135,6 +136,8 @@ listSlice = __modules__._list.listSlice;
 listCull = __modules__._list.listCull;
 listZip = __modules__._list.listZip;
 listZip2 = __modules__._list.listZip2;
+listSort = __modules__._list.listSort;
+listRev = __modules__._list.listRev;
 setMake = __modules__._set.setMake;
 setUni = __modules__._set.setUni;
 setInt = __modules__._set.setInt;

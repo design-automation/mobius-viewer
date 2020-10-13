@@ -415,10 +415,16 @@ export function Copy(__model__: GIModel, entities: TId|TId[]|TId[][], vector: Tx
     // --- Error Check ---
     const move_vec: Txyz = (Array.isArray(vector) ? vector : [0, 0, vector]) as Txyz;
     const bool_copy_attribs = true;
+    const t1 = Date.now();
+    console.log("Start copy operation, number of entities = ", ents_arr.length);
     // copy the list of entities
     const new_ents_arr: TEntTypeIdx|TEntTypeIdx[]|TEntTypeIdx[][] = _copyGeom(__model__, ents_arr, bool_copy_attribs);
+    const t2 = Date.now();
+    console.log("Done copyGeom, duration = ", t2 - t1);
     // copy the positions that belong to the list of entities
     _copyGeomPosis(__model__, new_ents_arr, bool_copy_attribs, move_vec);
+    const t3 = Date.now();
+    console.log("Done clonePosis, duration = ", t3 - t2);
     // return only the new entities
     return idsMake(new_ents_arr) as TId|TId[]|TId[][];
 }
@@ -1624,7 +1630,7 @@ function _cutCreateEnts(__model__: GIModel, ent_type: EEntType, ent_i: number, p
         return [[], []];
     }
     // update the lists, to deal with the end cases
-    if (is_closed) {
+    if (ent_type === EEntType.PGON) {
         // add the last list of posis to the the first list of posis
         for (const slice_posi_i of slice_posis_i[index][slice_posis_i[index].length - 1]) {
             slice_posis_i[index][0].push(slice_posi_i);

@@ -137,36 +137,36 @@ export async function Import(__model__: GIModel, input_data: string, data_format
     }
     return idsMake([EEntType.COLL, coll_i]) as TId;
 }
-function _importGI(__model__: GIModel, json_str: string): number {
+export function _importGI(__model__: GIModel, json_str: string): number {
     // get number of ents before merge
-    const num_ents_before: number[] = __model__.modeldata.geom.query.numEntsAll();
+    const num_ents_before: number[] = __model__.metadata.getEntCounts();
     // import
     const gi_model: GIModel = new GIModel(__model__.getMetaData());
     gi_model.setJSONStr(json_str);
     __model__.append(gi_model);
     // get number of ents after merge
-    const num_ents_after: number[] = __model__.modeldata.geom.query.numEntsAll();
+    const num_ents_after: number[] = __model__.metadata.getEntCounts();
     // return the result
     return _createGIColl(__model__, num_ents_before, num_ents_after);
 }
 function _importObj(__model__: GIModel, model_data: string): number {
     // get number of ents before merge
-    const num_ents_before: number[] = __model__.modeldata.geom.query.numEntsAll();
+    const num_ents_before: number[] = __model__.metadata.getEntCounts();
     // import
     const obj_model: GIModel = importObj(model_data);
     __model__.merge(obj_model);
     // get number of ents after merge
-    const num_ents_after: number[] = __model__.modeldata.geom.query.numEntsAll();
+    const num_ents_after: number[] = __model__.metadata.getEntCounts();
     // return the result
     return _createColl(__model__, num_ents_before, num_ents_after);
 }
 function _importGeojson(__model__: GIModel, model_data: string): number {
     // get number of ents before merge
-    const num_ents_before: number[] = __model__.modeldata.geom.query.numEntsAll();
+    const num_ents_before: number[] = __model__.metadata.getEntCounts();
     // import
     importGeojson(__model__, model_data, 0);
     // get number of ents after merge
-    const num_ents_after: number[] = __model__.modeldata.geom.query.numEntsAll();
+    const num_ents_after: number[] = __model__.metadata.getEntCounts();
     // return the result
     return _createColl(__model__, num_ents_before, num_ents_after);
 }
