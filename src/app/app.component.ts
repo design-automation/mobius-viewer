@@ -34,6 +34,7 @@ export class AppComponent implements DoCheck, OnInit, OnDestroy, AfterViewInit {
         this.matIconRegistry.addSvgIcon('cVisibility', this.domSanitizer.bypassSecurityTrustResourceUrl('assets/Icons/visibility.svg'));
         this.matIconRegistry.addSvgIcon('c3D Viewer', this.domSanitizer.bypassSecurityTrustResourceUrl('assets/Icons/3D2.svg'));
         this.matIconRegistry.addSvgIcon('cGeo Viewer', this.domSanitizer.bypassSecurityTrustResourceUrl('assets/Icons/Geo.svg'));
+        this.data = _parameterTypes.newFn();
     }
     /**
      * ngOnInit
@@ -204,11 +205,21 @@ export class AppComponent implements DoCheck, OnInit, OnDestroy, AfterViewInit {
                     localStorage.setItem('geo_settings', JSON.stringify(newSettings));
                     this.dataService.viewerSettingsUpdated = true
                 }
-                const model = this.data;
-                this.data = _parameterTypes.newFn();
-                setTimeout(() => {
-                    this.data = model;
-                }, 0);
+                // const model = this.data;
+                // this.data = _parameterTypes.newFn();
+                // setTimeout(() => {
+                //     this.data = model;
+                // }, 0);
+                break;
+            case 'get_localstorage_list':
+                let fileList = JSON.parse(localStorage.getItem('mobius_backup_list'));
+                if (!fileList) {
+                    fileList = [];
+                }
+                window.parent.postMessage({
+                    messageType: 'localstorage_list',
+                    file_list: fileList
+                }, '*');
                 break;
         }
         const container = document.getElementById('dummy_container');

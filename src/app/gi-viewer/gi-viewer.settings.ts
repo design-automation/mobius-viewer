@@ -4,7 +4,7 @@ export const DefaultSettings = {
     normals: { show: false, size: 5 },
     axes: { show: true, size: 50 },
     grid: {
-        show: true,
+        show: false,
         size: 500,
         pos_x: 0,
         pos_y: 0,
