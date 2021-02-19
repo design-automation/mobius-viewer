@@ -55,7 +55,15 @@ export function idsBreak(id: TId|TId[]|TId[][]|TId[][][]): TEntTypeIdx|TEntTypeI
         const index: number = Number(id.slice(2));
         return [ent_type, index];
     } else {
-        return (id as TId[]).map( a_id => idsBreak(a_id) ) as TEntTypeIdx[];
+        const ents: TEntTypeIdx[][][] = [];
+        for (const a_id of id) {
+            const a_ents: TEntTypeIdx[][] = idsBreak(a_id) as TEntTypeIdx[][];
+            if (a_ents.length) { // skip empty arrays
+                ents.push(a_ents);
+            }
+        }
+        return ents;
+        // return (id as TId[]).map( a_id => idsBreak(a_id) ) as TEntTypeIdx[];
     }
     // } else if (depth === 1) {
     //     const ids_arr: TId[] = ids as TId[];

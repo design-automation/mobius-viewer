@@ -319,7 +319,7 @@ export class GIAttribsAdd {
             let target_ents_i: number[] = null;
             if (target_coll === 'coll_parent') {
                 const parent = this._modeldata.geom.nav.navCollToCollParent(index);
-                target_ents_i = (parent === -1) ? [] : [parent];
+                target_ents_i = (parent === null) ? [] : [parent];
             } else if (target_coll === 'coll_children') {
                 target_ents_i = this._modeldata.geom.nav.navCollToCollChildren(index);
             } else {

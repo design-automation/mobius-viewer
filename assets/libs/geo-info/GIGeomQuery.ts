@@ -63,11 +63,6 @@ export class GIGeomQuery {
         //     return this._geom_maps.up_posis_verts.has(index);
         // }
         const geom_maps_key: string = EEntStrToGeomMaps[ent_type];
-
-        if (this._geom_maps[geom_maps_key] === undefined) {
-            console.log(">>>>", ent_type, index,  geom_maps_key)
-        }
-        
         return this._geom_maps[geom_maps_key].has(index);
     }
     /**
@@ -493,7 +488,7 @@ export class GIGeomQuery {
     public getCollAncestors(coll_i: number): number[] {
         const ancestor_colls_i: number[] = [];
         let parent_coll_i: number = this._geom_maps.up_colls_colls.get(coll_i);
-        while (parent_coll_i !== -1) {
+        while (parent_coll_i !== null) {
             ancestor_colls_i.push(parent_coll_i);
             parent_coll_i = this._geom_maps.up_colls_colls.get(parent_coll_i);
         }
@@ -506,7 +501,7 @@ export class GIGeomQuery {
     public getCollDescendents(coll_i: number): number[] {
         const descendent_colls_i: number[] = [];
         this._geom_maps.up_colls_colls.forEach( (coll2_parent, coll2_i) => {
-            if (coll2_parent !== -1 && coll2_i !== coll_i) {
+            if (coll2_parent !== null && coll2_i !== coll_i) {
                 if (this.isCollDescendent(coll2_i, coll_i)) {
                     descendent_colls_i.push(coll2_i);
                 }
@@ -520,7 +515,13 @@ export class GIGeomQuery {
      */
     public isCollDescendent(coll1_i: number, coll2_i: number): boolean {
         let parent_coll_i: number = this._geom_maps.up_colls_colls.get(coll1_i);
-        while (parent_coll_i !== -1) {
+        while (parent_coll_i !== null) {
+            // START TEMPORARY FIX
+            if (parent_coll_i === undefined) {
+                console.log("=== ERROR PARENT OF COLLECTION IS UNDEFINED ===");
+                return false;
+            }
+            // END TEMPORARY FIX
             if (parent_coll_i === coll2_i) { return true; }
             parent_coll_i = this._geom_maps.up_colls_colls.get(parent_coll_i);
         }
@@ -532,7 +533,7 @@ export class GIGeomQuery {
      */
     public isCollAncestor(coll1_i: number, coll2_i: number): boolean {
         let parent_coll_i: number = this._geom_maps.up_colls_colls.get(coll2_i);
-        while (parent_coll_i !== -1) {
+        while (parent_coll_i !== null) {
             if (parent_coll_i === coll1_i) { return true; }
             parent_coll_i = this._geom_maps.up_colls_colls.get(parent_coll_i);
         }

@@ -89,8 +89,8 @@ function _create(__model__: GIModel, ents_arr: TEntTypeIdx | TEntTypeIdx[] | TEn
         if (isPgon(ent_arr[0])) { pgons_i.push(ent_arr[1]); }
         if (isColl(ent_arr[0])) { child_colls_i.push(ent_arr[1]); }
     }
-    // create the collection, setting tha parent to -1
-    const coll_i: number = __model__.modeldata.geom.add.addColl(-1, points_i, plines_i, pgons_i);
+    // create the collection, setting tha parent to null
+    const coll_i: number = __model__.modeldata.geom.add.addColl(null, points_i, plines_i, pgons_i);
     // set the parents
     for (const child_coll_i of child_colls_i) {
         __model__.modeldata.geom.modify_coll.setCollParent(child_coll_i, coll_i);

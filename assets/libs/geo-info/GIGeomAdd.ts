@@ -127,7 +127,6 @@ export class GIGeomAdd {
      * @param pgons_i
      */
     public addColl(parent_i: number, points_i: number[], plines_i: number[], pgons_i: number[]): number {
-        parent_i = parent_i === null ? -1 : parent_i;
         // create collection
         const coll_i: number = this._geom.modeldata.model.metadata.nextColl();
         this._geom_maps.dn_colls_points.set(coll_i, points_i);
