@@ -97,7 +97,7 @@ export async function Import(__model__: GIModel, input_data: string, data_format
     if (!model_data) {
         throw new Error('Invalid imported model data');
     }
-    let coll_i: number = null;
+    let colls_i: number[] = null;
     if (model_data.constructor === {}.constructor) {
         let import_func: Function;
         switch (data_format) {
@@ -116,28 +116,30 @@ export async function Import(__model__: GIModel, input_data: string, data_format
         const coll_results = {};
         for (const data_name in <Object> model_data) {
             if (model_data[data_name]) {
-                coll_i  = import_func(__model__, <string> model_data[data_name]);
-                coll_results[data_name] = idsMake([EEntType.COLL, coll_i]) as TId;
+                colls_i  = import_func(__model__, <string> model_data[data_name]);
+                const new_colls: TEntTypeIdx[] = colls_i.map( coll_i => [EEntType.COLL, coll_i]);
+                coll_results[data_name] = idsMake(new_colls) as TId;
             }
         }
         return coll_results;
     }
     switch (data_format) {
         case _EIODataFormat.GI:
-            coll_i  = _importGI(__model__, <string> model_data);
+            colls_i  = _importGI(__model__, <string> model_data);
             break;
         case _EIODataFormat.OBJ:
-            coll_i  = _importObj(__model__, <string> model_data);
+            colls_i  = _importObj(__model__, <string> model_data);
             break;
         case _EIODataFormat.GEOJSON:
-            coll_i  = _importGeojson(__model__, <string> model_data);
+            colls_i  = _importGeojson(__model__, <string> model_data);
             break;
         default:
             throw new Error('Import type not recognised');
     }
-    return idsMake([EEntType.COLL, coll_i]) as TId;
+    const colls: TEntTypeIdx[] = colls_i.map( coll_i => [EEntType.COLL, coll_i]);
+    return idsMake(colls) as TId;
 }
-export function _importGI(__model__: GIModel, json_str: string): number {
+export function _importGI(__model__: GIModel, json_str: string): number[] {
     // get number of ents before merge
     const num_ents_before: number[] = __model__.metadata.getEntCounts();
     // import
@@ -146,10 +148,15 @@ export function _importGI(__model__: GIModel, json_str: string): number {
     __model__.append(gi_model);
     // get number of ents after merge
     const num_ents_after: number[] = __model__.metadata.getEntCounts();
+    // get the new coll numbers
+    const new_colls_i: number[] = [];
+    for (let i = num_ents_before[4]; i < num_ents_after[4]; i++) {
+        new_colls_i.push(i);
+    }
     // return the result
-    return _createGIColl(__model__, num_ents_before, num_ents_after);
+    return new_colls_i;
 }
-function _importObj(__model__: GIModel, model_data: string): number {
+function _importObj(__model__: GIModel, model_data: string): number[] {
     // get number of ents before merge
     const num_ents_before: number[] = __model__.metadata.getEntCounts();
     // import
@@ -158,9 +165,9 @@ function _importObj(__model__: GIModel, model_data: string): number {
     // get number of ents after merge
     const num_ents_after: number[] = __model__.metadata.getEntCounts();
     // return the result
-    return _createColl(__model__, num_ents_before, num_ents_after);
+    return [_createColl(__model__, num_ents_before, num_ents_after)];
 }
-function _importGeojson(__model__: GIModel, model_data: string): number {
+function _importGeojson(__model__: GIModel, model_data: string): number[] {
     // get number of ents before merge
     const num_ents_before: number[] = __model__.metadata.getEntCounts();
     // import
@@ -168,7 +175,7 @@ function _importGeojson(__model__: GIModel, model_data: string): number {
     // get number of ents after merge
     const num_ents_after: number[] = __model__.metadata.getEntCounts();
     // return the result
-    return _createColl(__model__, num_ents_before, num_ents_after);
+    return [_createColl(__model__, num_ents_before, num_ents_after)];
 }
 function _createGIColl(__model__: GIModel, before: number[], after: number[]): number {
     const points_i: number[] = [];

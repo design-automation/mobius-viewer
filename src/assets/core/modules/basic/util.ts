@@ -198,7 +198,7 @@ function _getColls(__model__: GIModel, ent_type: EEntType, ent_i: number): strin
     let colls_i: number[] = [];
     if (ent_type === EEntType.COLL) {
         const parent: number = __model__.modeldata.geom.query.getCollParent(ent_i);
-        if (parent !== -1) { colls_i = [parent]; }
+        if (parent !== null) { colls_i = [parent]; }
     } else {
         colls_i = __model__.modeldata.geom.nav.navAnyToColl(ent_type, ent_i);
     }

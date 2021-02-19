@@ -303,8 +303,8 @@ export class GIGeomDel {
         // check if the deleted coll is a parent of other colls
         const set_colls_i: Set<number> = new Set(colls_i);
         this._geom_maps.up_colls_colls.forEach( (coll_parent, coll_i) => {
-            if (set_colls_i.has(coll_parent)) {
-                this._geom_maps.up_colls_colls.set(coll_i, -1);
+            if (coll_parent !== null && set_colls_i.has(coll_parent)) {
+                this._geom_maps.up_colls_colls.set(coll_i, null);
                 // update time stamp
                 this._geom.time_stamp.updateEntTs(EEntType.COLL, coll_i);
             }

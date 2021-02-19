@@ -245,6 +245,29 @@ function _convertWireToShape(__model__: GIModel, wire_i: number, is_closed: bool
     shape.scaleUp(SCALE);
     return shape;
 }
+// mobius -> clipperjs
+function _convertPlineToShape(__model__: GIModel, pline_i: number,  posis_map: TPosisMap): Shape {
+    const wire_i: number = __model__.modeldata.geom.nav.navPlineToWire(pline_i);
+    const is_closed: boolean = __model__.modeldata.geom.query.isWireClosed(wire_i);
+    const shape_coords: TClipPaths = [];
+    shape_coords.push([]);
+    const posis_i: number[] = __model__.modeldata.geom.nav.navAnyToPosi(EEntType.PLINE, pline_i);
+    for (const posi_i of posis_i) {
+        const xyz: Txyz = __model__.modeldata.attribs.query.getPosiCoords(posi_i);
+        const coord: IClipCoord = {X: xyz[0], Y: xyz[1]};
+        shape_coords[0].push( coord );
+        _putPosiInMap(xyz[0], xyz[1], posi_i, posis_map);
+    }
+    if (is_closed) {
+        // close the pline by adding an extra point
+        const first: IClipCoord = shape_coords[0][0];
+        const last: IClipCoord = {X: first.X, Y: first.Y};
+        shape_coords[0].push(last);
+    }
+    const shape: Shape = new Shape(shape_coords, false); // this is always false, even if pline is closed
+    shape.scaleUp(SCALE);
+    return shape;
+}
 // clipperjs -> mobius
 function _convertShapesToPgons(__model__: GIModel, shapes: Shape|Shape[], posis_map: TPosisMap): number[] {
     shapes = Array.isArray(shapes) ? shapes : [shapes];
@@ -291,6 +314,63 @@ function _convertShapeToPlines(__model__: GIModel, shape: Shape, is_closed: bool
             plines_i.push(pgon_i);
         }
     }
+    return plines_i;
+}
+// clipperjs
+function _convertShapeToCutPlines(__model__: GIModel, shape: Shape, posis_map: TPosisMap): number[] {
+    shape.scaleDown(SCALE);
+    const sep_shapes: Shape[] = shape.separateShapes();
+    const lists_posis_i: number[][] = [];
+    for (const sep_shape of sep_shapes) {
+        const paths: TClipPaths = sep_shape.paths;
+        for (const path of paths) {
+            if (path.length === 0) { continue; }
+            const posis_i: number[] = [];
+            // make a list of posis
+            for (const coord of path) {
+                const posi_i: number = _getPosiFromMap(__model__, coord.X, coord.Y, posis_map);
+                posis_i.push(posi_i);
+            }
+            // must have at least 2 posis
+            if (posis_i.length < 2) { continue; }
+            // add the list
+            lists_posis_i.push(posis_i);
+        }
+    }
+    // see if there is a join between two lists
+    // this can occur when boolean with closed polylines
+    // for each closed polyline in the input, there can only be one merge
+    // this is the point where the end meets the start
+    const to_merge: number[][] = [];
+    for (let p = 0; p < lists_posis_i.length; p++) {
+        const posis0: number[] = lists_posis_i[p];
+        for (let q = 0; q < lists_posis_i.length; q++) {
+            const posis1: number[] = lists_posis_i[q];
+            if (p !== q && posis0[posis0.length - 1] === posis1[0]) {
+                to_merge.push([p, q]);
+            }
+        }
+    }
+    for (const [p, q] of to_merge) {
+        // copy posis from sub list q to sub list p
+        // skip the first posi
+        for (let idx = 1; idx < lists_posis_i[q].length; idx++) {
+            const posi_i: number = lists_posis_i[q][idx];
+            lists_posis_i[p].push(posi_i);
+        }
+        // set sub list q to null
+        lists_posis_i[q] = null;
+    }
+    // create plines and check closed
+    const plines_i: number[] = [];
+    for (const posis_i of lists_posis_i) {
+        if (posis_i === null) { continue; }
+        const is_closed = posis_i[0] === posis_i[posis_i.length - 1];
+        if (is_closed) { posis_i.splice(posis_i.length - 1, 1); }
+        const pline_i: number = __model__.modeldata.geom.add.addPline(posis_i, is_closed);
+        plines_i.push( pline_i );
+    }
+    // return the list of new plines
     return plines_i;
 }
 // clipperjs
@@ -708,7 +788,6 @@ export function Boolean(__model__: GIModel, a_entities: TId|TId[], b_entities: T
     a_entities = arrMakeFlat(a_entities) as TId[];
     if (isEmptyArr(a_entities)) { return []; }
     b_entities = arrMakeFlat(b_entities) as TId[];
-    if (isEmptyArr(b_entities)) { return a_entities; }
     // --- Error Check ---
     const fn_name = 'poly2d.Boolean';
     let a_ents_arr: TEntTypeIdx[];
@@ -731,7 +810,19 @@ export function Boolean(__model__: GIModel, a_entities: TId|TId[], b_entities: T
     const [a_pgons_i, a_plines_i]: [number[], number[]] = _getPgonsPlines(__model__, a_ents_arr);
     const b_pgons_i: number[] = _getPgons(__model__, b_ents_arr);
     if (a_pgons_i.length === 0 && a_plines_i.length === 0) { return []; }
-    if (b_pgons_i.length === 0) { return []; }
+    if (b_pgons_i.length === 0) {
+        switch (method) {
+            case _EBooleanMethod.INTERSECT:
+                // intersect with nothing returns nothing
+                return [];
+            case _EBooleanMethod.DIFFERENCE:
+            case _EBooleanMethod.SYMMETRIC:
+                // difference with nothing returns copies
+                return idsMake(_copyGeom(__model__, a_ents_arr, false)) as TId[];
+            default:
+                return [];
+        }
+    }
     // const a_shape: Shape = _convertPgonsToShapeUnion(__model__, a_pgons_i, posis_map);
     const b_shape: Shape = _convertPgonsToShapeUnion(__model__, b_pgons_i, posis_map);
     // call the boolean function
@@ -786,9 +877,10 @@ function _booleanPlines(__model__: GIModel, plines_i: number|number[], b_shape: 
         method: _EBooleanMethod, posis_map: TPosisMap): number[] {
     if (!Array.isArray(plines_i)) {
         plines_i = plines_i as number;
-        const wire_i: number = __model__.modeldata.geom.nav.navPlineToWire(plines_i);
-        const is_closed: boolean = __model__.modeldata.geom.query.isWireClosed(wire_i);
-        const a_shape: Shape = _convertWireToShape(__model__, wire_i, is_closed, posis_map);
+        // const wire_i: number = __model__.modeldata.geom.nav.navPlineToWire(plines_i);
+        // const is_closed: boolean = __model__.modeldata.geom.query.isWireClosed(wire_i);
+        // const a_shape: Shape = _convertWireToShape(__model__, wire_i, is_closed, posis_map);
+        const a_shape: Shape = _convertPlineToShape(__model__, plines_i, posis_map);
         let result_shape: Shape;
         switch (method) {
             case _EBooleanMethod.INTERSECT:
@@ -805,7 +897,7 @@ function _booleanPlines(__model__: GIModel, plines_i: number|number[], b_shape: 
             default:
                 break;
         }
-        return _convertShapeToPlines(__model__, result_shape, is_closed, posis_map);
+        return _convertShapeToCutPlines(__model__, result_shape, posis_map);
     } else {
         plines_i = plines_i as number[];
         const all_new_plines: number[] = [];
@@ -1015,9 +1107,10 @@ function _offsetPline(__model__: GIModel, pline_i: number, dist: number,
  * ~
  * @param __model__
  * @param entities A list polylines or polygons, or entities from which polylines or polygons can be extracted.
+ * @param tolerance The tolerance for extending open plines if they are almost intersecting. 
  * @returns Copies of the input polyline and polygons, stiched.
  */
-export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
+export function Stitch(__model__: GIModel, entities: TId|TId[], tolerance: number): TId[] {
     entities = arrMakeFlat(entities) as TId[];
     if (isEmptyArr(entities)) {
         return [];
@@ -1041,6 +1134,7 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
     const map_edge_i_to_posi_i: Map<number, [number, number]> = new Map();
     const map_edge_i_to_bbox: Map<number, [Txy, Txy]> = new Map();
     const map_posi_i_to_xyz: Map<number, Txyz> = new Map();
+    const map_edge_i_to_tol: Map<number, [number, number]> = new Map();
     // get the edges
     // const ents_arr2: TEntTypeIdx[] = [];
     // const edges_i: number[] = [];
@@ -1052,12 +1146,31 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
     //         _knifeGetEdgeData(__model__, edge_i, map_edge_i_to_posi_i, map_edge_i_to_bbox, map_posi_i_to_xyz);
     //     }
     // }
+    // set tolerance for intersections
     const edges_i: number[] = [];
+    // do stitch
     for (const [ent_type, ent_i] of new_ents_arr) {
-        const ent_edges_i: number[] = __model__.modeldata.geom.nav.navAnyToEdge(ent_type, ent_i);
-        for (const ent_edge_i of ent_edges_i) {
-            edges_i.push(ent_edge_i);
-            _knifeGetEdgeData(__model__, ent_edge_i, map_edge_i_to_posi_i, map_edge_i_to_bbox, map_posi_i_to_xyz);
+        const ent_wires_i: number[] = __model__.modeldata.geom.nav.navAnyToWire(ent_type, ent_i);
+        for (const ent_wire_i of ent_wires_i) {
+            const wire_edges_i: number[] = __model__.modeldata.geom.nav.navAnyToEdge(EEntType.WIRE, ent_wire_i);
+            const is_closed: boolean = __model__.modeldata.geom.query.isWireClosed(ent_wire_i);
+            for (let i = 0; i < wire_edges_i.length; i++) {
+                const wire_edge_i: number = wire_edges_i[i];
+                edges_i.push(wire_edge_i);
+                let edge_tol: [number, number] = [0, 0];
+                if (!is_closed) {
+                    if ( wire_edges_i.length === 1) {
+                        edge_tol = [-tolerance, tolerance];
+                    } else if (i === 0) { // first edge
+                        edge_tol = [-tolerance, 0];
+                    } else if (i === wire_edges_i.length - 1) { // last edge
+                        edge_tol = [0, tolerance];
+                    }
+                    map_edge_i_to_tol.set(wire_edge_i, edge_tol);
+                }
+                _stitchGetEdgeData(__model__, wire_edge_i, edge_tol,
+                    map_edge_i_to_posi_i, map_edge_i_to_bbox, map_posi_i_to_xyz, map_edge_i_to_tol);
+            }
         }
     }
     // get the edges and the data for each edge
@@ -1069,6 +1182,7 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
         const a_xyz1: Txyz = map_posi_i_to_xyz.get(a_posis_i[1]);
         const a_xys: [Txy, Txy] = [[a_xyz0[0], a_xyz0[1]], [a_xyz1[0], a_xyz1[1]]];
         const a_bbox: [Txy, Txy] = map_edge_i_to_bbox.get(a_edge_i);
+        const a_norm_tol: [number, number] = map_edge_i_to_tol.get(a_edge_i);
         for (const b_edge_i of edges_i) {
             // if this is same edge, continue
             if (a_edge_i === b_edge_i) { continue; }
@@ -1081,49 +1195,59 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
             const b_xyz1: Txyz = map_posi_i_to_xyz.get(b_posis_i[1]);
             const b_xys: [Txy, Txy] = [[b_xyz0[0], b_xyz0[1]], [b_xyz1[0], b_xyz1[1]]];
             const b_bbox: [Txy, Txy] = map_edge_i_to_bbox.get(b_edge_i);
-            if (_knifeOverlap(a_bbox, b_bbox)) {
-                const isect: [number, number, Txy] = _knifeIntersect(a_xys, b_xys);
+            const b_norm_tol: [number, number] = map_edge_i_to_tol.get(b_edge_i);
+            if (_stitchOverlap(a_bbox, b_bbox)) {
+                // isect is [t, u, new_xy] or null
+                //
+                // TODO decide what to do about t_type and u_type... currently they are not used
+                //
+                const isect: [[number, number], [number, number], Txy] = _stitchIntersect(a_xys, b_xys, a_norm_tol, b_norm_tol);
+                // console.log("=======")
+                // console.log("a_xys", a_xys)
+                // console.log("b_xys", b_xys)
+                // console.log("a_norm_tol", a_norm_tol)
+                // console.log("b_norm_tol", b_norm_tol)
+                // console.log("isect", isect)
+                // , b_xys, a_norm_tol, b_norm_tol, isect);
                 if (isect !== null) {
-                    let a_isect = true;
-                    let b_isect = true;
-                    const s = isect[0];
-                    const t = isect[1];
+                    const [t, t_type] = isect[0]; // -1 = start, 0 = mid, 1 = end
+                    const [u, u_type] = isect[1]; // -1 = start, 0 = mid, 1 = end
                     const new_xy = isect[2];
                     // get or create the new posi
                     let new_posi_i: number = null;
                     // check if we are at the start or end of 'a' edge
-                    if (s === 0) {
-                        a_isect = false;
+                    const a_reuse_sta_posi: boolean = Math.abs(t) < 1e-6;
+                    const a_reuse_end_posi: boolean = Math.abs(t - 1) < 1e-6;
+                    if (a_reuse_sta_posi) {
                         new_posi_i = a_posis_i[0];
-                    } else if (s === 1) {
-                        a_isect = false;
+                    } else if (a_reuse_end_posi) {
                         new_posi_i = a_posis_i[1];
                     }
                     // check if we are at the start or end of 'b' edge
-                    if (t === 0) {
-                        b_isect = false;
+                    const b_reuse_sta_posi: boolean = Math.abs(u) < 1e-6;
+                    const b_reuse_end_posi: boolean = Math.abs(u - 1) < 1e-6;
+                    if (b_reuse_sta_posi) {
                         new_posi_i = b_posis_i[0];
-                    } else if (t === 1) {
-                        b_isect = false;
+                    } else if (b_reuse_end_posi) {
                         new_posi_i = b_posis_i[1];
                     }
                     // make a new position if we have an isect,
-                    if (new_posi_i === null && (a_isect || b_isect)) {
+                    if (new_posi_i === null) {
                         new_posi_i = __model__.modeldata.geom.add.addPosi();
                         __model__.modeldata.attribs.add.setPosiCoords(new_posi_i, [new_xy[0], new_xy[1], 0]);
                     }
                     // store the isects if there are any
-                    if (a_isect) {
+                    if (!a_reuse_sta_posi && !a_reuse_end_posi) {
                         if (!map_edge_i_to_isects.has(a_edge_i)) {
                             map_edge_i_to_isects.set(a_edge_i, []);
                         }
-                        map_edge_i_to_isects.get(a_edge_i).push( [s, new_posi_i] );
+                        map_edge_i_to_isects.get(a_edge_i).push( [t, new_posi_i] );
                     }
-                    if (b_isect) {
+                    if (!b_reuse_sta_posi && !b_reuse_end_posi) {
                         if (!map_edge_i_to_isects.has(b_edge_i)) {
                             map_edge_i_to_isects.set(b_edge_i, []);
                         }
-                        map_edge_i_to_isects.get(b_edge_i).push( [t, new_posi_i] );
+                        map_edge_i_to_isects.get(b_edge_i).push( [u, new_posi_i] );
                     }
                     // now remember that we did this pair already, so we don't do it again
                     if (!map_edge_i_to_edge_i.has(b_edge_i)) {
@@ -1140,10 +1264,29 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
         // isect [t, posi_i]
         const isects: [number, number][] = map_edge_i_to_isects.get(edge_i);
         isects.sort( (a, b) => a[0] - b[0] );
-        const posis_i: number[] = isects.map(isect => isect[1]);
-        const new_edges_i: number[] = __model__.modeldata.geom.modify.insertVertsIntoWire(edge_i, posis_i);
-        for (const new_edge_i of new_edges_i) {
-            all_new_edges_i.push(new_edge_i);
+        const new_sta: boolean = isects[0][0] < 0;
+        const new_end: boolean = isects[isects.length - 1][0] > 1;
+        let isects_mid: [number, number][] = isects;
+        if (new_sta) { isects_mid = isects_mid.slice(1); }
+        if (new_end) { isects_mid = isects_mid.slice(0, isects_mid.length - 1); }
+        if (new_sta) {
+            const posi_i: number = isects[0][1];
+            const pline_i: number = __model__.modeldata.geom.nav.navAnyToPline(EEntType.EDGE, edge_i)[0];
+            const new_sta_edge_i: number = __model__.modeldata.geom.modify_pline.appendVertToOpenPline(pline_i, posi_i, false);
+            all_new_edges_i.push(new_sta_edge_i);
+        }
+        if (new_end) {
+            const posi_i: number = isects[isects.length - 1][1];
+            const pline_i: number = __model__.modeldata.geom.nav.navAnyToPline(EEntType.EDGE, edge_i)[0];
+            const new_end_edge_i: number = __model__.modeldata.geom.modify_pline.appendVertToOpenPline(pline_i, posi_i, true);
+            all_new_edges_i.push(new_end_edge_i);
+        }
+        if (isects_mid.length > 0) {
+            const posis_i: number[] = isects_mid.map(isect => isect[1]);
+            const new_edges_i: number[] = __model__.modeldata.geom.modify.insertVertsIntoWire(edge_i, posis_i);
+            for (const new_edge_i of new_edges_i) {
+                all_new_edges_i.push(new_edge_i);
+            }
         }
     }
     // check if any new edges are zero length
@@ -1152,7 +1295,7 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
         const posis_i: number[] = __model__.modeldata.geom.nav.navAnyToPosi(EEntType.EDGE, edge_i);
         const xyzs: Txyz[] = posis_i.map(posi_i => __model__.modeldata.attribs.query.getPosiCoords(posi_i));
         const dist: number = distanceManhattan(xyzs[0], xyzs[1]);
-        if (dist === 0) {
+        if (dist < 1e-6) {
             // we are going to del this posi
             const del_posi_i: number = posis_i[0];
             // get the vert of this edge
@@ -1174,10 +1317,11 @@ export function Stitch(__model__: GIModel, entities: TId|TId[]): TId[] {
     // return
     return idsMake(new_ents_arr) as TId[];
 }
-function _knifeGetEdgeData(__model__: GIModel, edge_i: number,
+function _stitchGetEdgeData(__model__: GIModel, edge_i: number, tol: [number, number],
         map_edge_i_to_posi_i: Map<number, [number, number]>,
         map_edge_i_to_bbox: Map<number, [Txy, Txy]>,
-        map_posi_i_to_xyz: Map<number, Txyz>): void {
+        map_posi_i_to_xyz: Map<number, Txyz>,
+        map_edge_i_to_tol: Map<number, [number, number]>): void {
     // get the two posis
     const posis_i: number[] = __model__.modeldata.geom.nav.navAnyToPosi(EEntType.EDGE, edge_i);
     // save the two posis_i
@@ -1185,54 +1329,132 @@ function _knifeGetEdgeData(__model__: GIModel, edge_i: number,
     // save the xy value of the two posis
     if (!map_posi_i_to_xyz.has(posis_i[0])) {
         const xyz: Txyz = __model__.modeldata.attribs.query.getPosiCoords(posis_i[0]);
-        __model__.modeldata.attribs.add.setPosiCoords(posis_i[0], [xyz[0], xyz[1], 0]);
-        // Why is this not working? It also moves the original geom...
-        // if (xyz[2] !== 0) { xyz[2] = 0; } // TODO <<<<<<<<<<<<<<<<<<<<<<
+        if (xyz[2] !== 0) {
+            __model__.modeldata.attribs.add.setPosiCoords(posis_i[0], [xyz[0], xyz[1], 0]);
+        }
         map_posi_i_to_xyz.set(posis_i[0], xyz);
     }
     if (!map_posi_i_to_xyz.has(posis_i[1])) {
         const xyz: Txyz = __model__.modeldata.attribs.query.getPosiCoords(posis_i[1]);
-        __model__.modeldata.attribs.add.setPosiCoords(posis_i[1], [xyz[0], xyz[1], 0]);
-        // Why is this not working? It also moves the original geom...
-        // if (xyz[2] !== 0) { xyz[2] = 0; } // TODO <<<<<<<<<<<<<<<<<<<<<<
+        if (xyz[2] !== 0) {
+            __model__.modeldata.attribs.add.setPosiCoords(posis_i[1], [xyz[0], xyz[1], 0]);
+        }
         map_posi_i_to_xyz.set(posis_i[1], xyz);
     }
-    // save the bbox
+    // calc the normalised tolerance
     const xyz0: Txyz = map_posi_i_to_xyz.get(posis_i[0]);
     const xyz1: Txyz = map_posi_i_to_xyz.get(posis_i[1]);
     const xys: [Txy, Txy] = [[xyz0[0], xyz0[1]], [xyz1[0], xyz1[1]]];
-    const x_min: number = xys[0][0] < xys[1][0] ? xys[0][0] : xys[1][0];
-    const x_max: number = xys[0][0] > xys[1][0] ? xys[0][0] : xys[1][0];
-    const y_min: number = xys[0][1] < xys[1][1] ? xys[0][1] : xys[1][1];
-    const y_max: number = xys[0][1] > xys[1][1] ? xys[0][1] : xys[1][1];
+    const norm_tol: [number, number] = _stitchNormaliseTolerance(xys, tol);
+    // save the bbox
+    let tol_bb = 0;
+    if (-tol[0] > tol[1]) {
+        tol_bb = -tol[0];
+    } else {
+        tol_bb = tol[1];
+    }
+    // this tolerance is a llittle to generous, but it is ok, in some cases no intersection will be found
+    const x_min: number = (xys[0][0] < xys[1][0] ? xys[0][0] : xys[1][0]) - tol_bb;
+    const y_min: number = (xys[0][1] < xys[1][1] ? xys[0][1] : xys[1][1]) - tol_bb;
+    const x_max: number = (xys[0][0] > xys[1][0] ? xys[0][0] : xys[1][0]) + tol_bb;
+    const y_max: number = (xys[0][1] > xys[1][1] ? xys[0][1] : xys[1][1]) + tol_bb;
     map_edge_i_to_bbox.set( edge_i, [[x_min, y_min], [x_max, y_max]] );
+    // console.log("TOL",tol_bb, [[x_min, y_min], [x_max, y_max]] )
+    // save the tolerance
+    map_edge_i_to_tol.set( edge_i, norm_tol);
 }
-function _knifeOverlap(bbox1: [Txy, Txy], bbox2: [Txy, Txy]): boolean {
+function _stitchOverlap(bbox1: [Txy, Txy], bbox2: [Txy, Txy]): boolean {
     if (bbox2[1][0] < bbox1[0][0]) { return false; }
     if (bbox2[0][0] > bbox1[1][0]) { return false; }
     if (bbox2[1][1] < bbox1[0][1]) { return false; }
     if (bbox2[0][1] > bbox1[1][1]) { return false; }
     return true;
 }
-function _knifeIntersect(l1: [Txy, Txy], l2: [Txy, Txy]): [number, number, Txy] {
+// function _knifeIntersect(l1: [Txy, Txy], l2: [Txy, Txy]): [number, number, Txy] {
+//     // https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
+//     const x1 = l1[0][0];
+//     const y1 = l1[0][1];
+//     const x2 = l1[1][0];
+//     const y2 = l1[1][1];
+//     const x3 = l2[0][0];
+//     const y3 = l2[0][1];
+//     const x4 = l2[1][0];
+//     const y4 = l2[1][1];
+//     const denominator  = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4));
+//     if (denominator === 0) { return null; }
+//     const t = (((x1 - x3) * (y3 - y4)) - ((y1 - y3) * (x3 - x4))) / denominator;
+//     const u = -(((x1 - x2) * (y1 - y3)) - ((y1 - y2) * (x1 - x3))) / denominator;
+//     if ((t >= 0 && t <= 1) && (u >= 0 && u <= 1)) {
+//         const new_xy: Txy = [x1 + (t * x2) - (t * x1), y1 + (t * y2) - (t * y1)];
+//         return [t, u, new_xy];
+//     }
+//     return null;
+// }
+function _stitchNormaliseTolerance(l1: [Txy, Txy], tol: [number, number]): [number, number] {
+    if (tol[0] || tol[1]) {
+        const new_tol: [number, number] = [0, 0];
+        const x1 = l1[0][0];
+        const y1 = l1[0][1];
+        const x2 = l1[1][0];
+        const y2 = l1[1][1];
+        const xdist = (x1 - x2), ydist = (y1 - y2);
+        const dist = Math.sqrt(xdist * xdist + ydist * ydist);
+        // if tol is not zero, then calc a new tol
+        if (tol[0]) { new_tol[0] = tol[0] / dist; }
+        if (tol[1]) { new_tol[1] = tol[1] / dist; }
+        return new_tol;
+    }
+    return [0, 0];
+}
+/**
+ * Returns [[t, type], [u, type], [x, y]]
+ * Return value 'type' is as follows:
+ * -1 indicates that the edge is crossed close to the start position of the edge.
+ * 0 indicates that the edge is crossed somewhere in the middle.
+ * 1 indicates that the edge is crossed close to the end position of the edge.
+ * @param a_line [[x,y], [x,y]]
+ * @param b_line [[x,y], [x,y]]
+ * @param a_tol [norm_start_offset, norm_end_offset]
+ * @param b_tol [norm_start_offset, norm_end_offset]
+ * @returns [[t, type], [u, type], [x, y]]
+ */
+function _stitchIntersect(a_line: [Txy, Txy], b_line: [Txy, Txy], a_tol: [number, number],
+        b_tol: [number, number]): [[number, number], [number, number], Txy] {
     // https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
-    const x1 = l1[0][0];
-    const y1 = l1[0][1];
-    const x2 = l1[1][0];
-    const y2 = l1[1][1];
-    const x3 = l2[0][0];
-    const y3 = l2[0][1];
-    const x4 = l2[1][0];
-    const y4 = l2[1][1];
+    // line 1, t
+    const x1 = a_line[0][0];
+    const y1 = a_line[0][1];
+    const x2 = a_line[1][0];
+    const y2 = a_line[1][1];
+    // line 2, u
+    const x3 = b_line[0][0];
+    const y3 = b_line[0][1];
+    const x4 = b_line[1][0];
+    const y4 = b_line[1][1];
     const denominator  = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4));
     if (denominator === 0) { return null; }
+    // calc intersection
     const t = (((x1 - x3) * (y3 - y4)) - ((y1 - y3) * (x3 - x4))) / denominator;
     const u = -(((x1 - x2) * (y1 - y3)) - ((y1 - y2) * (x1 - x3))) / denominator;
-    if ((t >= 0 && t <= 1) && (u >= 0 && u <= 1)) {
+    if ((t >= a_tol[0] && t <= 1 + a_tol[1]) && (u >= b_tol[0] && u <= 1 + b_tol[1])) {
         const new_xy: Txy = [x1 + (t * x2) - (t * x1), y1 + (t * y2) - (t * y1)];
-        return [t, u, new_xy];
+        let t_type = 0; // crosses at mid
+        let u_type = 0; // crosses at mid
+        // check if we are at the start or end of 'a' edge
+        if (t < -a_tol[0]) {
+            t_type = -1; // crosses close to start
+        } else if (t > 1 - a_tol[1]) {
+            t_type = 1; // crosses close to end
+        }
+        // check if we are at the start or end of 'b' edge
+        if (u < -b_tol[0]) {
+            u_type = -1; // crosses close to start
+        } else if (u > 1 - b_tol[1]) {
+            u_type = 1; // crosses close to end
+        }
+        return [[t, t_type], [u, u_type], new_xy];
     }
-    return null;
+    return null; // no intersection
 }
 
 // ================================================================================================
