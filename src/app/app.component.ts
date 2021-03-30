@@ -221,6 +221,12 @@ export class AppComponent implements DoCheck, OnInit, OnDestroy, AfterViewInit {
                     file_list: fileList
                 }, '*');
                 break;
+            case 'zoom_to_fit':
+                const giZoom = document.getElementById('zoomingfit');
+                if (giZoom) { giZoom.click(); }
+                const cesiumZoom = document.getElementById('cesium_zoom_fit');
+                if (cesiumZoom) { cesiumZoom.click(); }
+                break;
         }
         const container = document.getElementById('dummy_container');
         if (!event.data.showAttrTable) {
