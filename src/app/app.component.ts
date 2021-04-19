@@ -194,6 +194,10 @@ export class AppComponent implements DoCheck, OnInit, OnDestroy, AfterViewInit {
                     this.settingsCheck(newSettings, oldSettings)
                     localStorage.setItem('mpm_settings', JSON.stringify(newSettings));
                     this.dataService.viewerSettingsUpdated = true
+                    if (newSettings.camera && newSettings.camera.pos && newSettings.camera.target) {
+                        const updateGIPosButton = document.getElementById('updateGICamera');
+                        if (updateGIPosButton) { updateGIPosButton.click(); }
+                    }
                 }
                 if (event.data.Geo_settings) {
                     const oldSettings = JSON.parse(localStorage.getItem('geo_settings'));

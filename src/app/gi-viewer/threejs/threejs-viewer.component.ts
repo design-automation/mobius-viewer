@@ -1640,15 +1640,24 @@ export class ThreejsViewerComponent implements OnInit, DoCheck, OnChanges, OnDes
     }
 
     public zoomfit() {
-        // if (JSON.stringify(this._data_threejs._threejs_nums) === JSON.stringify([0, 0, 0])) {
-        //     return;
-        // }
         if (this._data_threejs.currentCamera === 'Persp') {
             this._data_threejs.lookAtObj();
         } else {
             this._data_threejs.orthoLookatObj();
         }
     }
+
+    public updateGICamera() {
+        if (this._data_threejs.currentCamera === 'Persp') {
+            const settings = JSON.parse(localStorage.getItem('mpm_settings'));
+            this._data_threejs.perspCam.position.copy(settings.camera.pos);
+            this._data_threejs.perspControls.target.copy(settings.camera.target);
+            this._data_threejs.perspCam.updateProjectionMatrix();
+            this._data_threejs.perspControls.update();
+        } else {
+        }
+    }
+
 
     private EntTypeToStr(ent_type: EEntType) {
         return EEntTypeStr[ent_type];
