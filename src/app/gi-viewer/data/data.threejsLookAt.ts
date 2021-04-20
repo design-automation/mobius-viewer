@@ -116,6 +116,7 @@ export class DataThreejsLookAt extends DataThreejsSelect {
             center = new THREE.Vector3();
             radius = 50;
         }
+        console.log('_all_objs_sphere...', center, radius)
 
         const posVec = new THREE.Vector3(center.x + 1.5 * dirX * radius,
                                          center.y + 1.5 * dirY * radius,
@@ -124,6 +125,8 @@ export class DataThreejsLookAt extends DataThreejsSelect {
         this.orthoCam.right = radius * this.orthoCam.right / this.orthoCam.top;
         this.orthoCam.top = radius;
         this.orthoCam.bottom = -radius;
+        this.orthoCam.near = radius * 0.01;
+        this.orthoCam.far = radius * 2;
         this.orthoCam.zoom = 1;
 
         this.orthoCam.position.copy(posVec);

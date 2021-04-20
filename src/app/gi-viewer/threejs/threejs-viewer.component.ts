@@ -1648,15 +1648,15 @@ export class ThreejsViewerComponent implements OnInit, DoCheck, OnChanges, OnDes
     }
 
     public updateGICamera() {
-        const settings = JSON.parse(localStorage.getItem('mpm_settings'));
+        const settings = JSON.parse(localStorage.getItem('newCamSettings'));
         if (this._data_threejs.currentCamera === 'Persp') {
-            this._data_threejs.perspCam.position.copy(settings.camera.pos);
-            this._data_threejs.perspControls.target.copy(settings.camera.target);
+            this._data_threejs.perspCam.position.copy(settings.pos);
+            this._data_threejs.perspControls.target.copy(settings.target);
             this._data_threejs.perspCam.updateProjectionMatrix();
             this._data_threejs.perspControls.update();
         } else {
-            this._data_threejs.orthoCam.position.copy(settings.camera.pos);
-            this._data_threejs.orthoControls.target.copy(settings.camera.target);
+            this._data_threejs.orthoCam.position.copy(settings.pos);
+            this._data_threejs.orthoControls.target.copy(settings.target);
             this._data_threejs.orthoCam.updateProjectionMatrix();
             this._data_threejs.orthoControls.update();    
         }
