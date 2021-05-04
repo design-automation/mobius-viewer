@@ -7,7 +7,7 @@ import { GIGeomThreejs } from './GIGeomThreejs';
 import { GIGeomIO } from './GIGeomIO';
 import { GIGeomDel } from './GIGeomDel';
 import { GIGeomCheck } from './GIGeomCheck';
-import { GIGeomCompare } from './GiGeomCompare';
+import { GIGeomCompare } from './GIGeomCompare';
 import { GIGeomModifyPline } from './GIGeomModifyPline';
 import { GIGeomModifyPgon } from './GIGeomModifyPgon';
 import { GIGeomModifyColl } from './GIGeomModifyColl';
